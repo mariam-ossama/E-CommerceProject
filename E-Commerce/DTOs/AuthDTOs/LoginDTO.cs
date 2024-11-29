@@ -1,14 +1,14 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace E_Commerce.DTOs
+namespace E_Commerce.DTOs.AuthDTOs
 {
     public class LoginDTO
     {
         [Required]
         [EmailAddress]
-        public string Email { get; set; }
+        required public string Email { get; set; }
 
         [Required]
-        public string Password { get; set; }
+        required public string Password { get; set; }
     }
 }

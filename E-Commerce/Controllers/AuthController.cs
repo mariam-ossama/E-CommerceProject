@@ -2,9 +2,10 @@
 using E_Commerce.Models;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
-using E_Commerce.DTOs;
 using Microsoft.EntityFrameworkCore;
 using E_Commerce.Services;
+using E_Commerce.DTOs.AuthDTOs;
+using E_Commerce.DTOs;
 
 namespace E_Commerce.Controllers
 {
@@ -50,7 +51,41 @@ namespace E_Commerce.Controllers
                 EmailConfirmed = false
             };
 
+            // Add user to Users table
             await _context.Users.AddAsync(user);
+            await _context.SaveChangesAsync();
+
+            // Add userId to the respective table based on the role
+            switch (registerDto.Role)
+            {
+                case "Customer":
+                    var customer = new Customer
+                    {
+                        UserId = user.UserId,
+                        User = user // Link User to Customer
+                    };
+                    await _context.Customers.AddAsync(customer);
+                    break;
+
+                case "Employee":
+                    var employee = new Employee
+                    {
+                        UserId = user.UserId,
+                        User = user // Link User to Employee
+                    };
+                    await _context.Employees.AddAsync(employee);
+                    break;
+
+                case "Admin":
+                    var admin = new Admin
+                    {
+                        UserId = user.UserId,
+                        User = user // Link User to Admin
+                    };
+                    await _context.Admins.AddAsync(admin);
+                    break;
+            }
+
             await _context.SaveChangesAsync();
 
             // Generate and store token
@@ -60,7 +95,6 @@ namespace E_Commerce.Controllers
             await _context.SaveChangesAsync();
 
             var confirmationLink = $"https://localhost:7090/api/Auth/confirm-email?token={token}";
-
             await _emailService.SendConfirmationEmailAsync(user.Email, confirmationLink);
 
             return Ok(new { user.UserId, token });
