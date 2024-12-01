@@ -20,22 +20,22 @@ namespace E_Commerce.Controllers
         }
 
         // Create a new Customer
-        [HttpPost("create")]
-        public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
-        {
-            if (await _context.Customers.AnyAsync(c => c.UserId == customer.UserId))
-                return BadRequest("Customer already exists.");
+        //[HttpPost("create")]
+        //public async Task<IActionResult> CreateCustomer([FromBody] Customer customer)
+        //{
+        //    if (await _context.Customers.AnyAsync(c => c.UserId == customer.UserId))
+        //        return BadRequest("Customer already exists.");
 
-            var user = await _context.Users.FindAsync(customer.UserId);
-            if (user == null)
-                return NotFound("User not found.");
+        //    var user = await _context.Users.FindAsync(customer.UserId);
+        //    if (user == null)
+        //        return NotFound("User not found.");
 
-            customer.User = user;
-            await _context.Customers.AddAsync(customer);
-            await _context.SaveChangesAsync();
+        //    customer.User = user;
+        //    await _context.Customers.AddAsync(customer);
+        //    await _context.SaveChangesAsync();
 
-            return Ok("Customer created successfully.");
-        }
+        //    return Ok("Customer created successfully.");
+        //}
 
         // Fetch all Customers
         [HttpGet("all")]
