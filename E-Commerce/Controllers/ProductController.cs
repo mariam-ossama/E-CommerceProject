@@ -5,7 +5,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
 
-// TODO: Testing
 namespace E_Commerce.Controllers
 {
     [Route("api/[controller]")]
@@ -55,27 +54,28 @@ namespace E_Commerce.Controllers
 
 
         [HttpPatch("edit/{id}")]
-        public async Task<IActionResult> EditProduct(int id, [FromBody] Product productUpdates)
+        public async Task<IActionResult> EditProduct(int id, [FromBody] UpdateProductDTO productUpdates)
         {
             var role = HttpContext.Items["UserRole"]?.ToString();
             if (role == "Customer")
                 return Forbid("Access denied.");
 
-            var product = await _context.Products.FindAsync(id);
+            var product = await _context.Products
+                .Include(p => p.ProductImages)
+                .FirstOrDefaultAsync(p => p.ProductId == id);
             if (product == null) return NotFound("Product not found.");
 
             if (!string.IsNullOrEmpty(productUpdates.ProductName))
                 product.ProductName = productUpdates.ProductName;
 
-            if (productUpdates.ProductPrice > 0)
-                product.ProductPrice = productUpdates.ProductPrice;
+            if (productUpdates.ProductPrice.HasValue && productUpdates.ProductPrice.Value > 0)
+                product.ProductPrice = productUpdates.ProductPrice.Value;
 
             if (!string.IsNullOrEmpty(productUpdates.ProductDescription))
                 product.ProductDescription = productUpdates.ProductDescription;
 
-            product.ProductQuantity = productUpdates.ProductQuantity > 0
-                ? productUpdates.ProductQuantity
-                : product.ProductQuantity;
+            if (productUpdates.ProductQuantity.HasValue && productUpdates.ProductQuantity.Value > 0)
+                product.ProductQuantity = productUpdates.ProductQuantity.Value;
 
             await _context.SaveChangesAsync();
             return Ok("Product updated successfully.");
@@ -101,6 +101,7 @@ namespace E_Commerce.Controllers
         {
             var product = await _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.ProductImages) // Include images
                 .FirstOrDefaultAsync(p => p.ProductId == id);
 
             if (product == null) return NotFound("Product not found.");
@@ -109,40 +110,34 @@ namespace E_Commerce.Controllers
 
         [HttpGet("all")]
         public async Task<IActionResult> GetAllProducts(
-    [FromQuery] string? categoryName = null,
-    [FromQuery] string? sortBy = "ProductName",
-    [FromQuery] string? sortOrder = "asc")
+            [FromQuery] string? categoryName = null,
+            [FromQuery] string? sortBy = "ProductName",
+            [FromQuery] string? sortOrder = "asc")
         {
-            // Base query
             var query = _context.Products
                 .Include(p => p.Category)
+                .Include(p => p.ProductImages) // Include images
                 .AsQueryable();
 
-            // Apply category filter if provided
             if (!string.IsNullOrEmpty(categoryName))
             {
                 query = query.Where(p => p.Category.CategoryName == categoryName);
             }
 
-            // Apply sorting
             query = sortBy?.ToLower() switch
             {
                 "productname" => sortOrder.ToLower() == "desc"
                     ? query.OrderByDescending(p => p.ProductName)
                     : query.OrderBy(p => p.ProductName),
-
                 "price" => sortOrder.ToLower() == "desc"
                     ? query.OrderByDescending(p => p.ProductPrice)
                     : query.OrderBy(p => p.ProductPrice),
-
                 "quantity" => sortOrder.ToLower() == "desc"
                     ? query.OrderByDescending(p => p.ProductQuantity)
                     : query.OrderBy(p => p.ProductQuantity),
-
-                _ => query.OrderBy(p => p.ProductName) // Default sorting
+                _ => query.OrderBy(p => p.ProductName)
             };
 
-            // Execute query
             var products = await query.ToListAsync();
             return Ok(products);
         }
@@ -185,14 +180,11 @@ namespace E_Commerce.Controllers
         }
 
         [HttpPost("{productId}/add-image")]
-        public async Task<IActionResult> AddImageToProduct(int productId, [FromBody] string imagePath)
+        public async Task<IActionResult> AddImageToProduct(int productId, [FromForm] List<IFormFile> imageFiles)
         {
-            if (string.IsNullOrEmpty(imagePath))
-            {
-                return BadRequest("Image path must be provided.");
-            }
-
+            // Fetch the product
             var product = await _context.Products
+                .Include(p => p.ProductImages) // Include existing images if necessary
                 .FirstOrDefaultAsync(p => p.ProductId == productId);
 
             if (product == null)
@@ -200,16 +192,60 @@ namespace E_Commerce.Controllers
                 return NotFound("Product not found.");
             }
 
-            var newImage = new ProductImage
+            // Check if any files are uploaded
+            if (imageFiles == null || imageFiles.Count == 0)
             {
-                ImagePath = imagePath,
-                ProductId = productId
-            };
+                return BadRequest("No files were uploaded.");
+            }
 
-            product.ProductImages.Add(newImage);
-            await _context.SaveChangesAsync();
+            // Define the directory for storing product images
+            var imageDirectory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "products");
 
-            return Ok("Image added successfully.");
+            try
+            {
+                // Ensure the directory exists
+                if (!Directory.Exists(imageDirectory))
+                {
+                    Directory.CreateDirectory(imageDirectory);
+                }
+
+                foreach (var file in imageFiles)
+                {
+                    if (file.Length > 0) // Check for non-empty file
+                    {
+                        var fileName = Path.GetFileNameWithoutExtension(file.FileName)
+                                        + "_" + Guid.NewGuid()
+                                        + Path.GetExtension(file.FileName);
+
+                        var filePath = Path.Combine(imageDirectory, fileName);
+
+                        // Save the file to the directory
+                        using (var stream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await file.CopyToAsync(stream);
+                        }
+
+                        // Add the new image to the database
+                        var newImage = new ProductImage
+                        {
+                            ImagePath = fileName,
+                            ProductId = productId
+                        };
+
+                        product.ProductImages.Add(newImage);
+                    }
+                }
+
+                // Save changes to the database
+                await _context.SaveChangesAsync();
+
+                return Ok("Image(s) added successfully.");
+            }
+            catch (Exception ex)
+            {
+                // Log the exception and return a proper error response
+                return StatusCode(500, $"Internal server error: {ex.Message}");
+            }
         }
 
     }

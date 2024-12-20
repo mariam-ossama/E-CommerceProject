@@ -1,20 +1,31 @@
-﻿using Swashbuckle.AspNetCore.SwaggerGen;
-using Microsoft.OpenApi.Models;
+﻿using Microsoft.OpenApi.Models;
+using Swashbuckle.AspNetCore.SwaggerGen;
 
 public class SwaggerFileUploadOperationFilter : IOperationFilter
 {
     public void Apply(OpenApiOperation operation, OperationFilterContext context)
     {
-        foreach (var parameter in operation.Parameters)
+        if (operation.RequestBody != null)
         {
-            // Check if the parameter is an IFormFile
-            if (parameter.Name.Equals("imageFile", StringComparison.OrdinalIgnoreCase))
+            operation.RequestBody.Content["multipart/form-data"] = new OpenApiMediaType
             {
-                // Set the parameter to be of type file and form data
-                parameter.In = ParameterLocation.Query;  // Use Query for file uploads in the new version of Swashbuckle
-                parameter.Schema.Type = "string";
-                parameter.Schema.Format = "binary";  // Indicates a file upload
-            }
+                Schema = new OpenApiSchema
+                {
+                    Type = "object",
+                    Properties =
+                    {
+                        ["imageFiles"] = new OpenApiSchema
+                        {
+                            Type = "array",
+                            Items = new OpenApiSchema
+                            {
+                                Type = "string",
+                                Format = "binary"
+                            }
+                        }
+                    }
+                }
+            };
         }
     }
 }

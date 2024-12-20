@@ -22,7 +22,7 @@ namespace E_Commerce.Controllers
 
         [HttpPost("add-homepage-image")]
         [SwaggerOperation(Summary = "Add a new homepage image")]
-        public async Task<IActionResult> AddHomepageImage([FromQuery] IFormFile imageFile, [FromQuery] string imageType, [FromQuery] int displayOrder)
+        public async Task<IActionResult> AddHomepageImage(IFormFile imageFile, [FromForm] string imageType, [FromForm] int displayOrder)
         {
             var role = HttpContext.Items["UserRole"]?.ToString();
             if (role == "Customer")

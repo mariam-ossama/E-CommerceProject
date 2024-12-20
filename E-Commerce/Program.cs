@@ -39,6 +39,8 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo { Title = "E-Commerce API", Version = "v1" });
+    options.OperationFilter<SwaggerFileUploadOperationFilter>();
+    options.OperationFilter<SwaggerHomePageImageUploadFilter>();
 
     options.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
@@ -64,11 +66,15 @@ builder.Services.AddSwaggerGen(options =>
             Array.Empty<string>()
         }
     });
-    options.OperationFilter<SwaggerFileUploadOperationFilter>();
 });
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.Preserve;
+        options.JsonSerializerOptions.WriteIndented = true;
+    });
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
