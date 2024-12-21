@@ -15,6 +15,11 @@ namespace E_Commerce.Data
         public DbSet<HomePageImage> HomepageImages { get; set; }
         public DbSet<ProductImage> Images { get; set; }
         public DbSet<BasketItem> BasketItems { get; set; }
+        public DbSet<Wallet> Wallets { get; set; }
+        public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<Order> Orders { get; set; }
+        public DbSet<OrderItem> OrderItems { get; set; }
+
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
